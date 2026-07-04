@@ -5,7 +5,9 @@ import time
 import psutil
 
 st.set_page_config(page_title="PCA Color Image Compression", layout="wide")
-
+"""
+Styling untuk interface PCA Image Compressor
+"""
 st.markdown(
     """
     <style>
@@ -34,11 +36,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
-def custom_eigen(A, num_components=30, iterations=50):
+def eigen(A, num_components=30, iterations=50):
     """
-    Menghitung Nilai Eigen dan Vektor Eigen menggunakan metode
-    Power Iteration dan Hotelling's Deflation (Tanpa library luar).
+    Fungsi untuk menghitung nilai eigen dan vektor eigen dari matriks kovarians
     """
     n = A.shape[0]
     eigenvalues = []
@@ -66,10 +66,11 @@ def custom_eigen(A, num_components=30, iterations=50):
     return np.array(eigenvalues), np.array(eigenvectors).T
 
 
-def compress_single_channel(channel_matrix, k_components):
+def compress(channel_matrix, k_components):
     """
-    Melakukan reduksi dimensi PCA pada satu channel matriks 2D (R/G/B)
+    Fungsi untuk melakukan kompresi PCA pada matriks channel
     """
+
     A = channel_matrix.astype(np.float32)
 
     mean_vector = np.mean(A, axis=0)
@@ -78,7 +79,7 @@ def compress_single_channel(channel_matrix, k_components):
 
     C = np.dot(A_centered.T, A_centered) / A.shape[0]
 
-    _, eigenvectors = custom_eigen(C, num_components=k_components)
+    _, eigenvectors = eigen(C, num_components=k_components)
 
     W = np.dot(A_centered, eigenvectors)
 
@@ -89,10 +90,12 @@ def compress_single_channel(channel_matrix, k_components):
 
 def process_color_image_pca(img_bgr, k_components):
     """
-    Memecah gambar menjadi channel B, G, R untuk mempertahankan warna asli
+    Fungsi untuk memproses gambar berwarna menggunakan PCA
     """
-    max_size = 200
+    
+    max_size = 800
     h, w, c = img_bgr.shape
+
     if h > max_size or w > max_size:
         scale = max_size / max(h, w)
         img_bgr = cv2.resize(img_bgr, (int(w * scale), int(h * scale)))
@@ -100,9 +103,9 @@ def process_color_image_pca(img_bgr, k_components):
 
     b_channel, g_channel, r_channel = cv2.split(img_bgr)
 
-    b_rec = compress_single_channel(b_channel, k_components)
-    g_rec = compress_single_channel(g_channel, k_components)
-    r_rec = compress_single_channel(r_channel, k_components)
+    b_rec = compress(b_channel, k_components)
+    g_rec = compress(g_channel, k_components)
+    r_rec = compress(r_channel, k_components)
 
     img_reconstructed_bgr = cv2.merge([b_rec, g_rec, r_rec])
 
@@ -117,23 +120,22 @@ def process_color_image_pca(img_bgr, k_components):
     return img_bgr, img_reconstructed_bgr, max(0.0, compression_ratio)
 
 
-st.title("PCA Color Image Compression")
-st.write("")
+st.title("PCA Image Compressor")
 
 with st.sidebar:
-    st.markdown("### 🛠️ Pengaturan Input")
-    uploaded_file = st.file_uploader("Pilih File Gambar", type=["jpg", "jpeg", "png"])
+    st.markdown("### Pilih Foto yang Ingin Dikompresi")
+    uploaded_file = st.file_uploader("Masukan Foto", type=["jpg", "jpeg", "png"])
 
     st.markdown("---")
-    st.markdown("### 🎛️ Tingkat Kompresi")
+    st.markdown("### Tingkat Kompresi Foto")
     k_components = st.slider(
-        "Jumlah Komponen Utama (k)", min_value=1, max_value=80, value=20, step=1
+        "Tingkat Kompresi Foto yang Diinginkan",
+        min_value=1,
+        max_value=100,
+        value=20,
+        step=1,
     )
 
-    st.markdown("---")
-    st.markdown("### 🖧 System Performance")
-    st.caption(f"**CPU Usage:** {psutil.cpu_percent()}%")
-    st.caption(f"**RAM Usage:** {psutil.virtual_memory().percent}%")
 
 if uploaded_file is not None:
     file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
@@ -170,27 +172,24 @@ if uploaded_file is not None:
     col_m1, col_m2 = st.columns(2)
     with col_m1:
         st.markdown(
-            f"<div class='metric-card'><h6>⚡ Runtime Algoritma</h6><h2>{runtime} detik</h2></div>",
+            f"<div class='metric-card'><h6>Waktu Kompresi</h6><h2>{runtime} detik</h2></div>",
             unsafe_allow_html=True,
         )
     with col_m2:
         st.markdown(
-            f"<div class='metric-card'><h6>📉 Efisiensi Reduksi Matriks Data</h6><h2>{comp_percentage:.2f}%</h2></div>",
+            f"<div class='metric-card'><h6>Persentase Perbedaan Piksel Hasil Kompresi</h6><h2>{comp_percentage:.2f}%</h2></div>",
             unsafe_allow_html=True,
         )
 
-    st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
 
-    is_success, buffer = cv2.imencode(".png", img_out)
-    if is_success:
-        bin_data = buffer.tobytes()
-        st.download_button(
-            label="💾 UNDUH HASIL KOMPRESI",
-            data=bin_data,
-            file_name="hasil_kompresi_pca.png",
-            mime="image/png",
-        )
-else:
-    st.info(
-        "Silakan unggah satu file gambar berwarna di panel kiri untuk menguji kompresi matriks PCA."
-    )
+        is_success, buffer = cv2.imencode(".png", img_out)
+        if is_success:
+            bin_data = buffer.tobytes()
+            st.download_button(
+                label="DOWNLOAD HASIL KOMPRESI",
+                data=bin_data,
+                file_name="hasil_kompresi_pca.png",
+                mime="image/png",
+                use_container_width=True,
+            )
