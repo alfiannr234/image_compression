@@ -2,12 +2,8 @@ import streamlit as st
 import cv2
 import numpy as np
 import time
-import psutil
 
 st.set_page_config(page_title="PCA Color Image Compression", layout="wide")
-"""
-Styling untuk interface PCA Image Compressor
-"""
 st.markdown(
     """
     <style>
